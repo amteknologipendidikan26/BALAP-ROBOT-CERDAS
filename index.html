@@ -9,19 +9,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>Balap Cerdas (Versi Robot)</title>
-
-
-
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 
-
-
     <style>
-
         /* --- CSS (Styling) --- */
-
         /* --- PENYESUAIAN KHUSUS UNTUK LAYAR SENTUH (Anti-Geser/Zoom) --- */
         body {
             /* Mencegah default action browser seperti zoom/pinch */
@@ -67,11 +59,7 @@
             --win-line-color: #5cb85c;
 
             --start-line-color: #f0ad4e;
-
         }
-
-
-
         body {
 
             font-family: 'Arial', sans-serif;
@@ -95,9 +83,6 @@
             position: relative;
 
         }
-
-
-
         h1 {
 
             color: #004a99;
@@ -107,9 +92,6 @@
             margin-bottom: 15px;
 
         }
-
-
-
         #fullscreen-btn {
 
             position: absolute;
@@ -139,17 +121,11 @@
             transition: background-color 0.2s;
 
         }
-
-
-
         #fullscreen-btn:hover {
 
             background-color: #0056b3;
 
         }
-
-
-
         /* --- LOBBY SCREEN --- */
 
         #lobby-screen {
@@ -167,9 +143,6 @@
             max-width: 600px;
 
         }
-
-
-
         #lobby-screen h2 {
 
             color: #004a99;
@@ -179,9 +152,6 @@
             margin-bottom: 25px;
 
         }
-
-
-
         /* Countdown Overlay: Z-index dan Posisi Dibuat Agresif */
 
         #countdown-overlay {
@@ -217,7 +187,6 @@
             animation: pulse 1s infinite alternate; 
 
         }
-
 
 
         @keyframes pulse {
@@ -890,756 +859,402 @@
 
     <script>
 
-        // --- JAVASCRIPT (Logika Game) ---
-
-
-
-        // ⚠️ PENTING: ID Spreadsheet BAWAAN Anda.
-
-        const DEFAULT_SHEET_ID = '1oHa5gGKi-rqnPcjt9p-Iz2iDjTc3GEciKfgHFYuepYk'; 
-
-
-
-        // --- SOAL SEMENTARA BAWAAN (FALLBACK) ---
-
-        const FALLBACK_QUESTIONS = [
-
-            ["Panjang Tangan", "Suka Mencuri", "Suka Memukul", "Suka Berbohong"],
-
-            ["Ringan Tangan", "Suka Menolong", "Malas", "Rajin"],
-
-            ["Naik Daun", "Sedang Terkenal", "Sedang di gunung", "Sedang Jalan-jalan"],
-
-            ["Buah Tangan", "OLeh-oleh", "Uang", "Buah"],
-
-            ["Gulung Tikar", "Bangkrut", "Untung", "Capek"],
-
-            ["Anak Emas", "Anak Kesayangan", "Anak Durhaka", "Anak Manja"],
-
-            ["Buah Bibir", "Topik Pembicaraan", "Bibir Besar", "Kegemaran"],
-
-            ["Gigit Jari", "Tidak Beruntung", "Takut", "Pasrah"],
-
-            ["Buah Hati", "Anak", "Kesayangan", "Cinta"],
-
-            ["Besar Kepala", "Sombong", "Jujur", "Bijaksana"],
-
-            ["Berat Hati", "Tidak Ikhlas", "Sakit-sakitan", "Takut"],
-
-            ["Langkah Seribu", "Lari Cepat", "Jalan", "Buru-buru"],
-
-            ["Meja Hijau", "Pengadilan", "Meja warna hijau", "Meja Belajar"],
-
-            ["Murah Senyum", "Ramah", "Angkuh", "Sopan"],
-
-            ["Jago Merah", "Api", "Berani", "Terang Benderang"]
-
-        ];
-
-
-
-        const playerKeys = [1, 2, 3, 4];
-
-        const players = playerKeys.map(p => ({
-
-            id: p,
-
-            element: document.getElementById(`player-icon-p${p}`),
-
-            position: 0,
-
-            correctAnswer: '', 
-
-            questionText: 'Siap!',
-
-            questionDisplay: document.getElementById(`q-p${p}`),
-
-            keypad: document.querySelector(`[data-keypad="${p}"]`),
-
-            options: [] 
-
-        }));
-
-
-
-        const finishSteps = 10; 
-
-        let gameActive = false;
-
-        let availableQuestions = []; 
-
-        let currentSheetID = DEFAULT_SHEET_ID; 
-
-
-
-        const startButton = document.getElementById('start-button');
-
-        const loadingStatus = document.getElementById('loading-status');
-
-        const questionCountDisplay = document.getElementById('question-count-display');
-
-        const messageDisplay = document.getElementById('message-display');
-
-        const restartBtn = document.getElementById('restart-btn');
-
-        const countdownOverlay = document.getElementById('countdown-overlay'); 
-
-        const gameContainer = document.getElementById('game-container'); 
-
-
-
-        function shuffleArray(array) {
-
-            for (let i = array.length - 1; i > 0; i--) {
-
-                const j = Math.floor(Math.random() * (i + 1));
-
-                [array[i], array[j]] = [array[j], array[i]];
-
-            }
-
-        }
-
-
-
-        function getSheetIDFromURL() {
-
-            const urlParams = new URLSearchParams(window.location.search);
-
-            const id = urlParams.get('id');
-
-            return id || DEFAULT_SHEET_ID;
-
-        }
-
-
-
-        async function loadQuestionsFromSheetID() {
-
-            currentSheetID = getSheetIDFromURL();
-
-            loadingStatus.textContent = 'Memuat soal dari Google Sheet...';
-
-            startButton.disabled = true;
-
-
-
-            const API_URL = `https://docs.google.com/spreadsheets/d/${currentSheetID}/gviz/tq?tqx=out:csv&gid=0`; 
-
-
-
-            try {
-
-                const response = await fetch(API_URL);
-
-                if (!response.ok) {
-
-                    throw new Error(`Gagal memuat: ${response.status} ${response.statusText}.`);
-
-                }
-
-                const csvText = await response.text();
-
-
-
-                const rows = csvText.trim().split('\n');
-
-                let loadedQuestions = [];
-
-
-
-                rows.forEach(row => {
-
-                    const cells = row.match(/(".*?"|[^,]+)/g) || []; 
-
-                    const cleanCells = cells.map(cell => cell.trim().replace(/^"|"$/g, ''));
-
-
-
-                    if (cleanCells.length >= 4 && cleanCells[0].trim() !== 'Pertanyaan' && cleanCells[0].trim() !== '') {
-
-                        loadedQuestions.push([
-
-                            cleanCells[0], 
-
-                            cleanCells[1], 
-
-                            cleanCells[2], 
-
-                            cleanCells[3]  
-
-                        ]);
-
-                    }
-
-                });
-
-
-
-                if (loadedQuestions.length === 0) {
-
-                    throw new Error('Tidak ada soal yang valid ditemukan di Sheet. Cek format (4 Kolom, tanpa header).');
-
-                }
-
-
-
-                availableQuestions = loadedQuestions;
-
-                shuffleArray(availableQuestions); 
-
-
-
-                loadingStatus.textContent = 'Soal berhasil dimuat dari Google Sheet!';
-
-                questionCountDisplay.textContent = `Total Soal: ${availableQuestions.length} soal (ID: ${currentSheetID.substring(0, 5)}...)`;
-
-                startButton.disabled = false;
-
-                return true;
-
-
-
-            } catch (error) {
-
-                console.error('Error memuat data dari Sheet:', error);
-
-                loadingStatus.textContent = `Gagal memuat soal dari Sheet: ${error.message}. Menggunakan soal bawaan.`;
-
-                return false; 
-
-            }
-
-        }
-
-
-
-        async function loadQuestions() {
-
-            const sheetLoaded = await loadQuestionsFromSheetID();
-
-            if (!sheetLoaded) {
-
-
-                availableQuestions = [...FALLBACK_QUESTIONS]; 
-
-
-                availableQuestions = [...FALLBACK_QUESTIONS];
-
-
-                let questionsHistory = []; 
-
-
-                const MAX_HISTORY = 5; 
-
-                shuffleArray(availableQuestions);
-
-                loadingStatus.textContent += ' Soal bawaan digunakan.';
-
-                questionCountDisplay.textContent = `Total Soal: ${availableQuestions.length} soal (Bawaan)`;
-
-                startButton.disabled = false;
-
-            }
-
-        }
-
-
-
-        // --- LOGIKA GAME ---
-
-
-
-
-       // --- KODE BARU (Mengambil Soal Acak Tanpa Menghapus) ---
-
-
-   // --- KODE BARU (Mengambil Soal Acak Tanpa Menghapus) ---
-
-function getNextQuestion() {
-
-    // Memastikan ada soal
-
-    if (availableQuestions.length === 0) {
-
-        // Jika soal habis, kita bisa mengulang lagi dari Fallback/Sheet
-
-        // Namun, jika kita ingin soal terus berputar, ini tidak perlu terjadi.
-
-        // Biarkan game berakhir hanya dari kondisi 'FINISH'
-
-        return ["Soal Habis! Kembali ke Lobi", "Error", "Error", "Error"]; 
-
+// --- JAVASCRIPT (Logika Game) ---
+
+// ⚠️ PENTING: ID Spreadsheet BAWAAN Anda.
+const DEFAULT_SHEET_ID = '1oHa5gGKi-rqnPcjt9p-Iz2iDjTc3GEciKfgHFYuepYk'; 
+
+// --- SOAL SEMENTARA BAWAAN (FALLBACK) ---
+const FALLBACK_QUESTIONS = [
+    ["Panjang Tangan", "Suka Mencuri", "Suka Memukul", "Suka Berbohong"],
+    ["Ringan Tangan", "Suka Menolong", "Malas", "Rajin"],
+    ["Naik Daun", "Sedang Terkenal", "Sedang di gunung", "Sedang Jalan-jalan"],
+    ["Buah Tangan", "OLeh-oleh", "Uang", "Buah"],
+    ["Gulung Tikar", "Bangkrut", "Untung", "Capek"],
+    ["Anak Emas", "Anak Kesayangan", "Anak Durhaka", "Anak Manja"],
+    ["Buah Bibir", "Topik Pembicaraan", "Bibir Besar", "Kegemaran"],
+    ["Gigit Jari", "Tidak Beruntung", "Takut", "Pasrah"],
+    ["Buah Hati", "Anak", "Kesayangan", "Cinta"],
+    ["Besar Kepala", "Sombong", "Jujur", "Bijaksana"],
+    ["Berat Hati", "Tidak Ikhlas", "Sakit-sakitan", "Takut"],
+    ["Langkah Seribu", "Lari Cepat", "Jalan", "Buru-buru"],
+    ["Meja Hijau", "Pengadilan", "Meja warna hijau", "Meja Belajar"],
+    ["Murah Senyum", "Ramah", "Angkuh", "Sopan"],
+    ["Jago Merah", "Api", "Berani", "Terang Benderang"]
+];
+
+const playerKeys = [1, 2, 3, 4];
+const players = playerKeys.map(p => ({
+    id: p,
+    element: document.getElementById(`player-icon-p${p}`),
+    position: 0,
+    correctAnswer: '', 
+    questionText: 'Siap!',
+    questionDisplay: document.getElementById(`q-p${p}`),
+    keypad: document.querySelector(`[data-keypad="${p}"]`),
+    options: [],
+    isLocked: false, // <-- [TAMBAHAN 1] Properti Kunci Input
+}));
+
+const finishSteps = 10; 
+let gameActive = false;
+let availableQuestions = []; 
+let currentSheetID = DEFAULT_SHEET_ID; 
+
+const startButton = document.getElementById('start-button');
+const loadingStatus = document.getElementById('loading-status');
+const questionCountDisplay = document.getElementById('question-count-display');
+const messageDisplay = document.getElementById('message-display');
+const restartBtn = document.getElementById('restart-btn');
+const countdownOverlay = document.getElementById('countdown-overlay'); 
+const gameContainer = document.getElementById('game-container'); 
+
+function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
     }
-
-
-
-    // Ganti .pop() dengan pemilihan indeks acak
-
-    const randomIndex = Math.floor(Math.random() * availableQuestions.length);
-
-
-
-
-    
-
-    // TIDAK menggunakan .pop() lagi. Cukup ambil data soalnya.
-
-    return availableQuestions[randomIndex]; 
-
-
-
-    // Catatan: Jika Anda ingin soal yang sudah keluar tidak muncul lagi
-
-    // *sampai* semua soal keluar, logika akan lebih rumit.
-
-    // Tetapi untuk kebutuhan 'putar acak tanpa akhir', kode di atas adalah solusinya.
-
 }
 
+function getSheetIDFromURL() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const id = urlParams.get('id');
+    return id || DEFAULT_SHEET_ID;
+}
 
+async function loadQuestionsFromSheetID() {
+    currentSheetID = getSheetIDFromURL();
+    loadingStatus.textContent = 'Memuat soal dari Google Sheet...';
+    startButton.disabled = true;
 
-        function generateRandomQuestion(player) {
+    const API_URL = `https://docs.google.com/spreadsheets/d/${currentSheetID}/gviz/tq?tqx=out:csv&gid=0`; 
 
-            const questionData = getNextQuestion(); 
+    try {
+        const response = await fetch(API_URL);
+        if (!response.ok) {
+            throw new Error(`Gagal memuat: ${response.status} ${response.statusText}.`);
+        }
+        const csvText = await response.text();
 
+        const rows = csvText.trim().split('\n');
+        let loadedQuestions = [];
 
+        rows.forEach(row => {
+            const cells = row.match(/(".*?"|[^,]+)/g) || []; 
+            const cleanCells = cells.map(cell => cell.trim().replace(/^"|"$/g, ''));
 
-            if (questionData[0] === "Soal Habis! Kembali ke Lobi") {
-
-                player.questionText = "Soal Habis!";
-
-                player.options = [];
-
-                deactivateKeypad(player.keypad);
-
-                endGame(null, "Soal Habis! Tidak ada pemenang.");
-
-                return;
-
+            if (cleanCells.length >= 4 && cleanCells[0].trim() !== 'Pertanyaan' && cleanCells[0].trim() !== '') {
+                loadedQuestions.push([
+                    cleanCells[0], 
+                    cleanCells[1], 
+                    cleanCells[2], 
+                    cleanCells[3]  
+                ]);
             }
+        });
 
-
-
-            const questionText = questionData[0];
-
-            const correctAnswer = questionData[1];
-
-            const distractor1 = questionData[2];
-
-            const distractor2 = questionData[3];
-
-
-
-            player.correctAnswer = correctAnswer;
-
-            player.questionText = questionText;
-
-
-
-            let options = [correctAnswer, distractor1, distractor2];
-
-            shuffleArray(options);
-
-            player.options = options; 
-
-
-
-            updateOptionsDisplay(player); 
-
+        if (loadedQuestions.length === 0) {
+            throw new Error('Tidak ada soal yang valid ditemukan di Sheet. Cek format (4 Kolom, tanpa header).');
         }
 
+        availableQuestions = loadedQuestions;
+        shuffleArray(availableQuestions); 
+
+        loadingStatus.textContent = 'Soal berhasil dimuat dari Google Sheet!';
+        questionCountDisplay.textContent = `Total Soal: ${availableQuestions.length} soal (ID: ${currentSheetID.substring(0, 5)}...)`;
+        startButton.disabled = false;
+        return true;
+
+    } catch (error) {
+        console.error('Error memuat data dari Sheet:', error);
+        loadingStatus.textContent = `Gagal memuat soal dari Sheet: ${error.message}. Menggunakan soal bawaan.`;
+        return false; 
+    }
+}
+
+async function loadQuestions() {
+    const sheetLoaded = await loadQuestionsFromSheetID();
+    if (!sheetLoaded) {
+        availableQuestions = [...FALLBACK_QUESTIONS]; 
+        availableQuestions = [...FALLBACK_QUESTIONS];
+        let questionsHistory = []; 
+        const MAX_HISTORY = 5; 
+        shuffleArray(availableQuestions);
+        loadingStatus.textContent += ' Soal bawaan digunakan.';
+        questionCountDisplay.textContent = `Total Soal: ${availableQuestions.length} soal (Bawaan)`;
+        startButton.disabled = false;
+    }
+}
+
+// --- LOGIKA GAME ---
 
 
-        function updateOptionsDisplay(player) {
+// --- KODE BARU (Mengambil Soal Acak Tanpa Menghapus) ---
 
-            const labels = ['A', 'B', 'C'];
+function getNextQuestion() {
+    // Memastikan ada soal
+    if (availableQuestions.length === 0) {
+        // Jika soal habis, kita bisa mengulang lagi dari Fallback/Sheet
+        // Namun, jika kita ingin soal terus berputar, ini tidak perlu terjadi.
+        // Biarkan game berakhir hanya dari kondisi 'FINISH'
+        return ["Soal Habis! Kembali ke Lobi", "Error", "Error", "Error"]; 
+    }
 
-            const keypadButtons = player.keypad.querySelectorAll('button');
+    // Ganti .pop() dengan pemilihan indeks acak
+    const randomIndex = Math.floor(Math.random() * availableQuestions.length);
+    
+    // TIDAK menggunakan .pop() lagi. Cukup ambil data soalnya.
+    return availableQuestions[randomIndex]; 
 
-            player.questionDisplay.textContent = player.questionText;
+    // Catatan: Jika Anda ingin soal yang sudah keluar tidak muncul lagi
+    // *sampai* semua soal keluar, logika akan lebih rumit.
+    // Tetapi untuk kebutuhan 'putar acak tanpa akhir', kode di atas adalah solusinya.
+}
 
-            keypadButtons.forEach((btn, index) => {
+function generateRandomQuestion(player) {
+    const questionData = getNextQuestion(); 
 
-                if (player.options[index] !== undefined) {
+    if (questionData[0] === "Soal Habis! Kembali ke Lobi") {
+        player.questionText = "Soal Habis!";
+        player.options = [];
+        deactivateKeypad(player.keypad);
+        endGame(null, "Soal Habis! Tidak ada pemenang.");
+        return;
+    }
 
-                    const opt = player.options[index];
+    const questionText = questionData[0];
+    const correctAnswer = questionData[1];
+    const distractor1 = questionData[2];
+    const distractor2 = questionData[3];
 
-                    btn.textContent = `${labels[index]}. ${opt}`; 
+    player.correctAnswer = correctAnswer;
+    player.questionText = questionText;
 
-                    btn.dataset.value = opt;
+    let options = [correctAnswer, distractor1, distractor2];
+    shuffleArray(options);
+    player.options = options; 
 
-                    btn.classList.remove('hidden'); 
+    updateOptionsDisplay(player); 
+}
 
-                } else {
-
-                    btn.textContent = ''; 
-
-                    btn.dataset.value = '';
-
-                    btn.classList.add('hidden'); 
-
-                }
-
-            });
-
+function updateOptionsDisplay(player) {
+    const labels = ['A', 'B', 'C'];
+    const keypadButtons = player.keypad.querySelectorAll('button');
+    player.questionDisplay.textContent = player.questionText;
+    keypadButtons.forEach((btn, index) => {
+        if (player.options[index] !== undefined) {
+            const opt = player.options[index];
+            btn.textContent = `${labels[index]}. ${opt}`; 
+            btn.dataset.value = opt;
+            btn.classList.remove('hidden'); 
+        } else {
+            btn.textContent = ''; 
+            btn.dataset.value = '';
+            btn.classList.add('hidden'); 
         }
+    });
+}
 
-
-
-        // FUNGSI UTAMA: Langsung memulai countdown dari lobi
-
-        window.startGame = async function() {
-
-            if (availableQuestions.length === 0) {
-
-                await loadQuestions(); 
-
-                if (availableQuestions.length === 0) {
-
-                    loadingStatus.textContent = "Tidak ada soal untuk dimainkan.";
-
-                    return; 
-
-                }
-
-            }
-
-            // 1. Sembunyikan Lobi
-
-            document.getElementById('lobby-screen').classList.add('hidden');
-
-            initializeRace();
-
+// FUNGSI UTAMA: Langsung memulai countdown dari lobi
+window.startGame = async function() {
+    if (availableQuestions.length === 0) {
+        await loadQuestions(); 
+        if (availableQuestions.length === 0) {
+            loadingStatus.textContent = "Tidak ada soal untuk dimainkan.";
+            return; 
         }
+    }
+    // 1. Sembunyikan Lobi
+    document.getElementById('lobby-screen').classList.add('hidden');
+    initializeRace();
+}
 
+function initializeRace() {
+    gameActive = false;
 
+    players.forEach(p => { 
+        p.position = 0;
+        p.element.style.left = '5px'; 
+        p.questionDisplay.textContent = 'Siap!';
+        updateOptionsDisplay(p); 
+        deactivateKeypad(p.keypad);
+    });
+    startCountdown(); 
+}
 
-        function initializeRace() {
+// FUNGSI COUNTDOWN BARU: Menampilkan layar overlay penuh
+function startCountdown() {
+    let count = 3;
 
-            gameActive = false;
+    // 1. Tampilkan Overlay HITAM PENUH (Mengatasi masalah A)
+    countdownOverlay.textContent = count;
+    countdownOverlay.classList.remove('hidden'); 
+    countdownOverlay.style.display = 'flex'; // Paksa display: flex agar muncul
 
-
-
-            players.forEach(p => { 
-
-                p.position = 0;
-
-                p.element.style.left = '5px'; 
-
-                p.questionDisplay.textContent = 'Siap!';
-
-                updateOptionsDisplay(p); 
-
-                deactivateKeypad(p.keypad);
-
-            });
-
-            startCountdown(); 
-
-        }
-
-
-
-        // FUNGSI COUNTDOWN BARU: Menampilkan layar overlay penuh
-
-        function startCountdown() {
-
-            let count = 3;
-
-
-
-            // 1. Tampilkan Overlay HITAM PENUH (Mengatasi masalah A)
-
+    const countdownInterval = setInterval(() => {
+        count--;
+        if (count > 0) {
             countdownOverlay.textContent = count;
+        } else {
+            // 2. Selesai Countdown: Sembunyikan Overlay dan Tampilkan Game
+            clearInterval(countdownInterval);
+            countdownOverlay.classList.add('hidden'); 
+            countdownOverlay.style.display = 'none'; // Paksa disembunyikan
 
-            countdownOverlay.classList.remove('hidden'); 
+            // Baris kunci: Tampilkan Game Container HANYA setelah countdown selesai
+            gameContainer.classList.remove('hidden'); 
 
-            countdownOverlay.style.display = 'flex'; // Paksa display: flex agar muncul
-
-
-
-            const countdownInterval = setInterval(() => {
-
-                count--;
-
-                if (count > 0) {
-
-                    countdownOverlay.textContent = count;
-
-                } else {
-
-                    // 2. Selesai Countdown: Sembunyikan Overlay dan Tampilkan Game
-
-                    clearInterval(countdownInterval);
-
-                    countdownOverlay.classList.add('hidden'); 
-
-                    countdownOverlay.style.display = 'none'; // Paksa disembunyikan
-
-
-
-                    // Baris kunci: Tampilkan Game Container HANYA setelah countdown selesai
-
-                    gameContainer.classList.remove('hidden'); 
-
-
-
-                    messageDisplay.textContent = 'Siap Balapan!';
-
-                    restartBtn.classList.remove('hidden'); 
-
-                    startRace();
-
-                }
-
-            }, 1000); 
-
+            messageDisplay.textContent = 'Siap Balapan!';
+            restartBtn.classList.remove('hidden'); 
+            startRace();
         }
+    }, 1000); 
+}
 
+function startRace() {
+    gameActive = true;
+    players.forEach(p => { 
+        generateRandomQuestion(p);
+        activateKeypad(p.keypad);
+    });
+}
 
+function updatePlayerIconPosition(player) { 
+    const raceArena = document.getElementById('race-arena');
+    const maxTravelWidth = raceArena.offsetWidth - player.element.offsetWidth - 10; 
+    const newLeftPx = (player.position / finishSteps) * maxTravelWidth;
+    player.element.style.left = `${Math.min(newLeftPx, maxTravelWidth)}px`; 
 
-        function startRace() {
+    if (player.position >= finishSteps) {
+        endGame(player.id, `Pemain ${player.id} MENANG!`);
+    }
+}
 
-            gameActive = true;
+// [MODIFIKASI UTAMA 2] checkAnswer menjadi fungsi ASYNC
+async function checkAnswer(playerNum, selectedAnswerValue) { 
+    if (!gameActive) return;
 
-            players.forEach(p => { 
+    const player = players.find(p => p.id === playerNum); 
+    
+    // Memeriksa jika pemain sedang dalam masa hukuman (terkunci)
+    if (player.isLocked) return;
 
-                generateRandomQuestion(p);
+    const isCorrect = selectedAnswerValue === player.correctAnswer;
 
-                activateKeypad(p.keypad);
+    if (isCorrect) {
+        player.position++;
+        updatePlayerIconPosition(player); 
+        if (player.position >= finishSteps) return;
+        generateRandomQuestion(player); // Soal baru muncul segera
+    } else {
+        // --- LOGIKA JEDA 1 DETIK SAAT JAWABAN SALAH ---
+        
+        // 1. Kunci input & tombol keypad
+        player.isLocked = true; 
+        deactivateKeypad(player.keypad); 
 
-            });
+        // 2. Tunggu selama 1000 milidetik (1 detik)
+        await new Promise(resolve => setTimeout(resolve, 2000)); 
 
+        // 3. Buka kunci input & aktifkan tombol keypad
+        player.isLocked = false;
+        activateKeypad(player.keypad); 
+
+        // 4. Ganti soal (muncul segera setelah jeda 1 detik selesai)
+        generateRandomQuestion(player);
+    }
+
+    if (availableQuestions.length === 0 && !players.some(p => p.position >= finishSteps)) {
+        endGame(null, "Soal Habis! Tidak ada pemenang.");
+    }
+}
+
+function endGame(winningPlayerNum, message) {
+    gameActive = false;
+    messageDisplay.textContent = message;
+    restartBtn.classList.remove('hidden');
+
+    players.forEach(p => deactivateKeypad(p.keypad));
+
+    if (winningPlayerNum !== null) {
+        runConfetti();
+    }
+}
+
+function handleKeypadInput(key, playerNum) {
+    if (!gameActive) return;
+
+    const player = players.find(p => p.id === playerNum); 
+    
+    // [MODIFIKASI UTAMA 3] Cek status kunci sebelum memproses jawaban
+    if (player.isLocked) return; 
+
+    const selectedButton = player.keypad.querySelector(`button[data-key="${key}"]`);
+    if (selectedButton && selectedButton.dataset.value !== undefined) {
+        const selectedAnswerValue = selectedButton.dataset.value; 
+        checkAnswer(playerNum, selectedAnswerValue); 
+    }
+}
+
+function activateKeypad(keypad) {
+    keypad.querySelectorAll('button').forEach(btn => btn.disabled = false);
+}
+
+function deactivateKeypad(keypad) {
+    keypad.querySelectorAll('button').forEach(btn => btn.disabled = true);
+}
+
+document.querySelectorAll('.keypad').forEach(keypad => {
+    keypad.addEventListener('click', (e) => {
+        if (e.target.tagName === 'BUTTON') {
+            const playerNum = parseInt(keypad.dataset.keypad);
+            handleKeypadInput(e.target.dataset.key, playerNum);
         }
-
-
-
-        function updatePlayerIconPosition(player) { 
-
-            const raceArena = document.getElementById('race-arena');
-
-            const maxTravelWidth = raceArena.offsetWidth - player.element.offsetWidth - 10; 
-
-            const newLeftPx = (player.position / finishSteps) * maxTravelWidth;
-
-            player.element.style.left = `${Math.min(newLeftPx, maxTravelWidth)}px`; 
-
-
-
-            if (player.position >= finishSteps) {
-
-                endGame(player.id, `Pemain ${player.id} MENANG!`);
-
-            }
-
-        }
-
-
-
-        function checkAnswer(playerNum, selectedAnswerValue) { 
-
-            if (!gameActive) return;
-
-
-
-            const player = players.find(p => p.id === playerNum); 
-
-            const isCorrect = selectedAnswerValue === player.correctAnswer;
-
-
-
-            if (isCorrect) {
-
-                player.position++;
-
-                updatePlayerIconPosition(player); 
-
-                if (player.position >= finishSteps) return;
-
-                generateRandomQuestion(player);
-
-            } else {
-
-                generateRandomQuestion(player);
-
-            }
-
-
-
-            if (availableQuestions.length === 0 && !players.some(p => p.position >= finishSteps)) {
-
-                 endGame(null, "Soal Habis! Tidak ada pemenang.");
-
-            }
-
-        }
-
-
-
-        function endGame(winningPlayerNum, message) {
-
-            gameActive = false;
-
-            messageDisplay.textContent = message;
-
-            restartBtn.classList.remove('hidden');
-
-
-
-            players.forEach(p => deactivateKeypad(p.keypad));
-
-
-
-            if (winningPlayerNum !== null) {
-
-                runConfetti();
-
-            }
-
-        }
-
-
-
-        function handleKeypadInput(key, playerNum) {
-
-            if (!gameActive) return;
-
-
-
-            const player = players.find(p => p.id === playerNum); 
-
-            const selectedButton = player.keypad.querySelector(`button[data-key="${key}"]`);
-
-            if (selectedButton && selectedButton.dataset.value !== undefined) {
-
-                const selectedAnswerValue = selectedButton.dataset.value; 
-
-                checkAnswer(playerNum, selectedAnswerValue); 
-
-            }
-
-        }
-
-
-
-        function activateKeypad(keypad) {
-
-            keypad.querySelectorAll('button').forEach(btn => btn.disabled = false);
-
-        }
-
-
-
-        function deactivateKeypad(keypad) {
-
-            keypad.querySelectorAll('button').forEach(btn => btn.disabled = true);
-
-        }
-
-
-
-        document.querySelectorAll('.keypad').forEach(keypad => {
-
-            keypad.addEventListener('click', (e) => {
-
-                if (e.target.tagName === 'BUTTON') {
-
-                    const playerNum = parseInt(keypad.dataset.keypad);
-
-                    handleKeypadInput(e.target.dataset.key, playerNum);
-
-                }
-
-            });
-
-        });
-
-
-
-        restartBtn.addEventListener('click', () => {
-
-            gameContainer.classList.add('hidden');
-
-            document.getElementById('lobby-screen').classList.remove('hidden');
-
-            messageDisplay.textContent = '';
-
-            availableQuestions = []; 
-
-            questionCountDisplay.textContent = '';
-
-            loadingStatus.textContent = '';
-
-            startButton.disabled = false;
-
-
-
-            loadQuestions(); 
-
-        });
-
-
-
-        window.toggleFullscreen = function() {
-
-             const doc = document.documentElement;
-
-             const isFullscreen = document.fullscreenElement || document.mozFullScreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
-
-             const fullscreenBtn = document.getElementById('fullscreen-btn');
-
-
-
-             if (!isFullscreen) {
-
-                 if (doc.requestFullscreen) doc.requestFullscreen();
-
-                 else if (doc.mozRequestFullScreen) doc.mozRequestFullScreen();
-
-                 else if (doc.webkitRequestFullscreen) doc.webkitRequestFullscreen();
-
-                 else if (doc.msRequestFullscreen) document.msRequestFullscreen();
-
-                 fullscreenBtn.innerHTML = '<i class="fas fa-compress"></i> Exit Fullscreen';
-
-             } else {
-
-                 if (document.exitFullscreen) document.exitFullscreen();
-
-                 else if (document.mozCancelFullScreen) document.mozCancelFullScreen();
-
-                 else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
-
-                 else if (document.msExitFullscreen) document.msExitFullscreen();
-
-                 fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i> Fullscreen';
-
-             }
-
-         }
-
-         document.addEventListener('fullscreenchange', () => {
-
-             if (!document.fullscreenElement) {
-
-                 document.getElementById('fullscreen-btn').innerHTML = '<i class="fas fa-expand"></i> Fullscreen';
-
-             }
-
-         });
-
-
-
-        function runConfetti() {
-
-            confetti({ particleCount: 150, spread: 120, origin: { y: 0.6 } });
-
-        }
-
-
-
-    </script>
+    });
+});
+
+restartBtn.addEventListener('click', () => {
+    gameContainer.classList.add('hidden');
+    document.getElementById('lobby-screen').classList.remove('hidden');
+    messageDisplay.textContent = '';
+    availableQuestions = []; 
+    questionCountDisplay.textContent = '';
+    loadingStatus.textContent = '';
+    startButton.disabled = false;
+
+    loadQuestions(); 
+});
+
+window.toggleFullscreen = function() {
+    const doc = document.documentElement;
+    const isFullscreen = document.fullscreenElement || document.mozFullScreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
+    const fullscreenBtn = document.getElementById('fullscreen-btn');
+
+    if (!isFullscreen) {
+        if (doc.requestFullscreen) doc.requestFullscreen();
+        else if (doc.mozRequestFullScreen) doc.mozRequestFullScreen();
+        else if (doc.webkitRequestFullscreen) doc.webkitRequestFullscreen();
+        else if (doc.msRequestFullscreen) document.msRequestFullscreen();
+        fullscreenBtn.innerHTML = '<i class="fas fa-compress"></i> Exit Fullscreen';
+    } else {
+        if (document.exitFullscreen) document.exitFullscreen();
+        else if (document.mozCancelFullScreen) document.mozCancelFullScreen();
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+        else if (document.msExitFullscreen) document.msExitFullscreen();
+        fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i> Fullscreen';
+    }
+}
+document.addEventListener('fullscreenchange', () => {
+    if (!document.fullscreenElement) {
+        document.getElementById('fullscreen-btn').innerHTML = '<i class="fas fa-expand"></i> Fullscreen';
+    }
+});
+
+function runConfetti() {
+    confetti({ particleCount: 150, spread: 120, origin: { y: 0.6 } });
+}
+
+</script>
 
 </body>
 
